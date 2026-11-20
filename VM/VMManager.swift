@@ -1860,10 +1860,11 @@ final class VMManager: ObservableObject {
 
         // NETWORK: explicit user-mode netdev + virtio-net-pci (the NetKVM driver
         // the pipeline injects binds to this device). Because the network config
-        // is EXPLICIT, QEMU adds no implicit default NIC — so the unbundled
-        // efi-virtio.rom default-NIC failure seen in bare `-nodefaults`-less
-        // Terminal runs does not apply here; this exact line has booted VMs
-        // in-app across sessions.
+        // is EXPLICIT, QEMU adds no implicit default NIC. The explicit
+        // virtio-net-pci still loads its option ROM, efi-virtio.rom, from the
+        // -L folder (Resources): without it QEMU exits at once with "failed to
+        // find romfile". The build's firmware staging step copies it from the
+        // sysroot (2026-11-20: a clean build used to leave it out).
         args += ["-netdev", "user,id=net0", "-device", "virtio-net-pci,netdev=net0"]
 
         // agent-mouse=on (Path A, 2026-08-10; was off): lets the SPICE
