@@ -127,6 +127,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				AVMUSBHelperProtocol.swift,
+				ClientRequirement.swift,
 				streamfd.c,
 			);
 			target = 0A7E57000000000000000001 /* AVMTests */;

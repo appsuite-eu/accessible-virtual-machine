@@ -33,17 +33,11 @@ let log = OSLog(subsystem: AVMUSBHelperNames.machServiceName, category: "helper"
 /// chatty, and a root process should not narrate USB traffic into the
 /// unified log by default.
 let verboseStreamLogging = false
-/// Who may talk to this helper. Debug builds of AVM are signed by the
-/// development team; shipped builds by the Developer ID team. A
-/// release helper never trusts the development team.
-#if DEBUG
-let clientTeamID = "4NZJSBJ32X"
-#else
-let clientTeamID = "W7VP84KBHP"
-#endif
-let clientRequirement = "anchor apple generic"
-    + " and identifier \"\(AVMUSBHelperNames.clientBundleIdentifier)\""
-    + " and certificate leaf[subject.OU] = \"\(clientTeamID)\""
+/// Who may talk to this helper: AVM, signed by the team that signed this
+/// helper. See ClientRequirement.swift. nil (ad-hoc or unsigned helper)
+/// refuses every connection.
+let clientTeamID = ClientRequirement.ownTeamID()
+let clientRequirement = clientTeamID.flatMap { ClientRequirement.requirement(teamID: $0) }
 // MARK: - Idle exit
 /// The helper exits after this long with no connections and no
 /// claimed devices. launchd starts it again on the next XPC call.
@@ -363,6 +357,10 @@ final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
         // The gate. macOS checks the caller's code signature against
         // this requirement before any message is delivered. A caller
         // that is not AVM, signed by our team, never gets a reply.
+        guard let clientRequirement else {
+            os_log("helper has no signing team; refusing connection from pid %{public}d", log: log, type: .error, newConnection.processIdentifier)
+            return false
+        }
         if #available(macOS 13.0, *) {
             newConnection.setCodeSigningRequirement(clientRequirement)
         } else {
@@ -390,7 +388,7 @@ final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
 // MARK: - Main
 os_log("%{public}@ %{public}@ starting as uid %{public}d, requiring team %{public}@",
        log: log, type: .default,
-       AVMUSBHelperNames.machServiceName, helperBuildVersion, getuid(), clientTeamID)
+       AVMUSBHelperNames.machServiceName, helperBuildVersion, getuid(), clientTeamID ?? "none (every connection will be refused)")
 let delegate = ListenerDelegate()
 let listener = NSXPCListener(machServiceName: AVMUSBHelperNames.machServiceName)
 listener.delegate = delegate
